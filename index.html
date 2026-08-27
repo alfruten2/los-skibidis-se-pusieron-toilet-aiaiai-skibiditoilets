@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SUCHAI 4 — Estación Terrena | Dashboard de Telemetría</title>
+  <meta name="description" content="Dashboard de telemetría en tiempo real del nanosatélite SUCHAI 4 — Universidad de Chile">
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Leaflet.js (Map) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+
+  <!-- Custom Styles -->
+  <link rel="stylesheet" href="css/style.css">
+
+  <!-- Favicon: satellite emoji -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🛰️</text></svg>">
+</head>
+<body>
+
+  <!-- Scan line effect -->
+  <div class="scan-line"></div>
+
+  <!-- ===== HEADER / HUD BAR ===== -->
+  <header class="hud-header">
+    <div class="hud-header__logo">
+      <span class="sat-icon">🛰️</span>
+      <div>
+        <h1>SUCHAI 4</h1>
+        <span class="subtitle">Ground Station — Telemetría en Vivo</span>
+      </div>
+    </div>
+
+    <div class="hud-header__status">
+      <div class="status-badge online" id="status-badge">
+        <span class="dot"></span>
+        <span id="status-text">ENLACE ACTIVO</span>
+      </div>
+
+      <div class="clock-group">
+        <div class="clock-item">
+          <span class="label">UTC</span>
+          <span class="value" id="utc-clock">--:--:--</span>
+        </div>
+        <div class="clock-item">
+          <span class="label">MET</span>
+          <span class="value" id="met-counter">---d --:--:--</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ===== QUICK STATS BAR ===== -->
+  <div class="quick-stats">
+    <div class="quick-stat">
+      <span class="icon">🔋</span>
+      <div class="info">
+        <span class="label">Batería</span>
+        <span class="value" id="quick-battery-val">--%</span>
+      </div>
+    </div>
+    <div class="quick-stat">
+      <span class="icon">📡</span>
+      <div class="info">
+        <span class="label">Altitud</span>
+        <span class="value" id="quick-altitude-val">--- km</span>
+      </div>
+    </div>
+    <div class="quick-stat">
+      <span class="icon">⚡</span>
+      <div class="info">
+        <span class="label">Velocidad</span>
+        <span class="value" id="quick-speed-val">--- km/s</span>
+      </div>
+    </div>
+    <div class="quick-stat">
+      <span class="icon">🔌</span>
+      <div class="info">
+        <span class="label">Consumo</span>
+        <span class="value" id="quick-current-val">--- mA</span>
+      </div>
+    </div>
+    <div class="quick-stat">
+      <span class="icon">🎯</span>
+      <div class="info">
+        <span class="label">Modo</span>
+        <span class="value" id="quick-mode-val">---</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== MAIN CONTENT GRID ===== -->
+  <main class="main-content">
+
+    <!-- ===== ORBITAL TRACKER (full width) ===== -->
+    <section class="panel panel--orbit">
+      <div class="panel__header">
+        <h2><span class="icon">🌍</span> Rastreador Orbital</h2>
+        <span class="badge badge-live">● EN VIVO</span>
+      </div>
+      <div class="panel__body">
+        <div id="orbit-map"></div>
+        <div class="orbit-info">
+          <div class="orbit-info__item">
+            <span class="label">Latitud</span>
+            <span class="value" id="lat-value">--°</span>
+          </div>
+          <div class="orbit-info__item">
+            <span class="label">Longitud</span>
+            <span class="value" id="lon-value">--°</span>
+          </div>
+          <div class="orbit-info__item">
+            <span class="label">Altitud</span>
+            <span class="value" id="alt-value">-- km</span>
+          </div>
+          <div class="orbit-info__item">
+            <span class="label">Velocidad</span>
+            <span class="value" id="vel-value">-- km/s</span>
+          </div>
+          <div class="orbit-info__item">
+            <span class="label">Órbita</span>
+            <span class="value" id="orbit-number">#---</span>
+          </div>
+          <div class="orbit-info__item">
+            <span class="label">Estado</span>
+            <span class="value" id="eclipse-status">---</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== EPS - SISTEMA DE ENERGÍA ===== -->
+    <section class="panel panel--eps">
+      <div class="panel__header">
+        <h2><span class="icon">⚡</span> EPS — Sistema de Energía</h2>
+        <span class="badge badge-live">● LIVE</span>
+      </div>
+      <div class="panel__body">
+        <div class="telemetry-values">
+          <div class="telemetry-value">
+            <span class="label">Solar X</span>
+            <span class="number color-cyan" id="val-solar-x">--<span class="unit">V</span></span>
+          </div>
+          <div class="telemetry-value">
+            <span class="label">Solar Y</span>
+            <span class="number color-cyan" id="val-solar-y">--<span class="unit">V</span></span>
+          </div>
+          <div class="telemetry-value">
+            <span class="label">Solar Z</span>
+            <span class="number color-purple" id="val-solar-z">--<span class="unit">V</span></span>
+          </div>
+          <div class="telemetry-value">
+            <span class="label">Corriente</span>
+            <span class="number color-amber" id="val-solar-current">--<span class="unit">mA</span></span>
+          </div>
+        </div>
+        <div class="chart-container">
+          <canvas id="eps-chart"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== BATERÍA ===== -->
+    <section class="panel panel--battery">
+      <div class="panel__header">
+        <h2><span class="icon">🔋</span> Batería</h2>
+      </div>
+      <div class="panel__body">
+        <div class="battery-gauge">
+          <div class="battery-visual">
+            <div class="battery-fill" id="battery-fill" style="height: 78%"></div>
+          </div>
+          <div class="battery-info">
+            <div class="percentage" id="battery-percentage">78%</div>
+            <div class="status" id="battery-status">CARGANDO</div>
+            <div class="status" style="margin-top: 8px; color: var(--accent-cyan);">
+              <span id="battery-voltage-val">3.95V</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== OBC - TEMPERATURAS ===== -->
+    <section class="panel panel--obc">
+      <div class="panel__header">
+        <h2><span class="icon">🌡️</span> OBC — Temperaturas</h2>
+        <span class="badge badge-live">● LIVE</span>
+      </div>
+      <div class="panel__body">
+        <div class="telemetry-values">
+          <div class="telemetry-value">
+            <span class="label">CPU</span>
+            <span class="number color-amber" id="val-cpu-temp">--<span class="unit">°C</span></span>
+          </div>
+          <div class="telemetry-value">
+            <span class="label">Board</span>
+            <span class="number color-amber" id="val-board-temp">--<span class="unit">°C</span></span>
+          </div>
+          <div class="telemetry-value">
+            <span class="label">Payload</span>
+            <span class="number color-red" id="val-payload-temp">--<span class="unit">°C</span></span>
+          </div>
+          <div class="telemetry-value">
+            <span class="label">CPU %</span>
+            <span class="number color-green" id="val-cpu-usage">--<span class="unit">%</span></span>
+          </div>
+          <div class="telemetry-value">
+            <span class="label">Memoria</span>
+            <span class="number color-purple" id="val-mem-usage">--<span class="unit">KB</span></span>
+          </div>
+        </div>
+        <div class="chart-container">
+          <canvas id="temp-chart"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== COMMS - COMUNICACIONES ===== -->
+    <section class="panel panel--comms">
+      <div class="panel__header">
+        <h2><span class="icon">📡</span> COMMS — Comunicaciones RF</h2>
+        <span class="badge badge-live">● LIVE</span>
+      </div>
+      <div class="panel__body">
+        <div class="telemetry-values">
+          <div class="telemetry-value">
+            <span class="label">RSSI</span>
+            <span class="number color-purple" id="val-rssi">--<span class="unit">dBm</span></span>
+          </div>
+          <div class="telemetry-value">
+            <span class="label">SNR</span>
+            <span class="number color-green" id="val-snr">--<span class="unit">dB</span></span>
+          </div>
+          <div class="telemetry-value">
+            <span class="label">Paquetes</span>
+            <span class="number color-cyan" id="val-packets">--</span>
+          </div>
+          <div class="telemetry-value">
+            <span class="label">Pérdida</span>
+            <span class="number color-red" id="val-packet-loss">--<span class="unit">%</span></span>
+          </div>
+          <div class="telemetry-value">
+            <span class="label">Data Rate</span>
+            <span class="number color-amber" id="val-data-rate">--<span class="unit">bps</span></span>
+          </div>
+        </div>
+        <div class="chart-container">
+          <canvas id="comms-chart"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== TERMINAL / DECODIFICADOR ===== -->
+    <section class="panel panel--terminal">
+      <div class="panel__header">
+        <h2><span class="icon">💻</span> Terminal — Decodificador AX.25</h2>
+        <button class="btn" id="btn-clear-terminal">Limpiar</button>
+      </div>
+      <div class="panel__body">
+        <div class="terminal" id="terminal-output">
+          <span class="line decoded">[ Sistema inicializando... ]</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== DEMO CONTROLS ===== -->
+    <section class="panel panel--controls">
+      <div class="panel__header">
+        <h2><span class="icon">🎮</span> Control de Demostración</h2>
+      </div>
+      <div class="panel__body">
+        <div class="demo-controls">
+          <span class="label">Modo:</span>
+          <button class="btn active" id="btn-nominal">☀️ Nominal</button>
+          <button class="btn btn--eclipse" id="btn-eclipse">🌑 Eclipse</button>
+          <button class="btn btn--payload" id="btn-payload">📦 Descarga Payload</button>
+          <button class="btn btn--info" id="btn-info">ℹ️ Info SUCHAI 4</button>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ===== INFO MODAL ===== -->
+  <div class="modal-overlay" id="modal-overlay">
+    <div class="modal">
+      <h2>🛰️ SUCHAI 4 — Ficha Técnica</h2>
+      
+      <p>
+        El <strong>SUCHAI 4</strong> (Satellite of the University of Chile for Aerospace Investigation) es un 
+        nanosatélite CubeSat desarrollado por el Laboratorio de Exploración Espacial y Planetología (LEEP) 
+        de la <strong>Universidad de Chile</strong>, en colaboración con la Fuerza Aérea de Chile (FACh).
+      </p>
+      <p>
+        Su misión principal es el estudio del plasma ionosférico, el campo magnético terrestre y la 
+        demostración tecnológica de componentes COTS (Commercial Off-The-Shelf) en el entorno espacial.
+      </p>
+
+      <div class="specs-grid">
+        <div class="spec-item">
+          <span class="label">Formato</span>
+          <span class="value">1U CubeSat (10×10×10 cm)</span>
+        </div>
+        <div class="spec-item">
+          <span class="label">Masa</span>
+          <span class="value">~1.3 kg</span>
+        </div>
+        <div class="spec-item">
+          <span class="label">Órbita</span>
+          <span class="value">LEO ~500 km SSO (97.5°)</span>
+        </div>
+        <div class="spec-item">
+          <span class="label">Período Orbital</span>
+          <span class="value">~95 min (5700 s)</span>
+        </div>
+        <div class="spec-item">
+          <span class="label">Velocidad</span>
+          <span class="value">~7.6 km/s</span>
+        </div>
+        <div class="spec-item">
+          <span class="label">Comunicación</span>
+          <span class="value">UHF 437.225 MHz</span>
+        </div>
+        <div class="spec-item">
+          <span class="label">Computador de Vuelo</span>
+          <span class="value">MSP430 + Linux OBC</span>
+        </div>
+        <div class="spec-item">
+          <span class="label">Energía</span>
+          <span class="value">Paneles solares + Li-Ion</span>
+        </div>
+        <div class="spec-item">
+          <span class="label">Payloads</span>
+          <span class="value">Sonda Langmuir, Magnetómetro</span>
+        </div>
+        <div class="spec-item">
+          <span class="label">Institución</span>
+          <span class="value">Universidad de Chile — LEEP</span>
+        </div>
+      </div>
+
+      <p style="font-size: 0.8rem; color: var(--text-dim); margin-top: 16px;">
+        🏫 Proyecto presentado en la <strong>Feria Técnico Profesional de Programación</strong><br>
+        📊 Los datos mostrados son simulados con fines demostrativos.
+      </p>
+
+      <button class="btn close-btn" id="btn-close-modal">Cerrar</button>
+    </div>
+  </div>
+
+  <!-- ===== FOOTER ===== -->
+  <footer class="footer">
+    🛰️ SUCHAI 4 Ground Station Dashboard — Feria TP Programación 2026 — Datos simulados con fines educativos
+  </footer>
+
+  <!-- ===== SCRIPTS ===== -->
+  <script src="js/telemetry-simulator.js"></script>
+  <script src="js/charts.js"></script>
+  <script src="js/orbit-tracker.js"></script>
+  <script src="js/terminal.js"></script>
+  <script src="js/app.js"></script>
+
+</body>
+</html>
