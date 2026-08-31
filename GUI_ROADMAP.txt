@@ -1,0 +1,157 @@
+================================================================================
+  SUCHAI 4 — GROUND STATION DASHBOARD | HOJA DE RUTA Y PLAN DE TRABAJO (GUI)
+================================================================================
+Ubicación: /home/kurrr/Documentos/SuchaiWebTpToilet
+Fecha de creación: 31-Agosto-2026
+Última actualización: 31-Agosto-2026
+
+--------------------------------------------------------------------------------
+1. RESUMEN DEL PROYECTO Y OBJETIVO DE REDISEÑO
+--------------------------------------------------------------------------------
+Transformar la interfaz gráfica de la estación terrena del nanosatélite SUCHAI 4
+hacia un diseño mucho más sofisticado, editorial y profesional de "Centro de
+Control Científico", solucionando problemas de visualización del mapa,
+renovando completamente la paleta visual con soporte de Modo Claro / Modo Oscuro
+y añadiendo herramientas avanzadas de demostración interactiva para la feria.
+
+--------------------------------------------------------------------------------
+2. ESPECIFICACIÓN DE LA NUEVA PALETA DE COLORES
+--------------------------------------------------------------------------------
+A) MODO CLARO (Beige Editorial / Warm Scientific):
+   - Fondo principal: Beige suave y cálido (#F7F3EE / #EDE6DD)
+   - Tarjetas / Paneles: Blanco marfil / papel crema (#FFFFFF / #FBF9F6) con bordes suaves (#E5DDD5)
+   - Acento Primario: Rojo Pastel / Terracota-Coral suave (#E26D5C / #D96B60)
+   - Acento Secundario: Morado elegante / Lavanda profundo (#63519F / #745EB2)
+   - Tipografía: Carbón cálido / café oscuro (#2B2528 / #5C5356)
+
+B) MODO OSCURO (Deep Cosmic Purple & Mellow Gold):
+   - Fondo principal: Morado espacial profundo / Berenjena (#14101E / #1B1528)
+   - Tarjetas / Paneles: Ciruela grafito translúcido (#241C35 / #2C2340) con sutil resplandor (#4A3768)
+   - Acento Primario: Rojo Pastel atenuado (#F07C6F)
+   - Acento Secundario: Amarillo tranquilo / Ámbar cálido suave (#E5C07B / #DFB15B)
+   - Tipografía: Blanco perla / Lavanda grisáceo (#F3F0F7 / #ABA2BA)
+
+--------------------------------------------------------------------------------
+3. PLAN DE REORDENAMIENTO Y NUEVA DISTRIBUCIÓN (PENDIENTE DE APLICAR)
+--------------------------------------------------------------------------------
+Arquitectura Asimétrica "Command Center" (Proporción 68% / 32%):
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 1. HEADER HUD: S4 Logo | Relojes UTC + MET | Enlace Activo | Selector Tema │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ 2. MISSION CONTROL RIBBON (Barra Superior Unificada):                       │
+│    [Modos: Nominal/Eclipse/Payload] | [Time Warp: 1x 5x 10x 50x] [Pausa]    │
+│    [AOS/LOS Dinámico] | [KPIs Rápidos: Altitud, Vel, Batería, Consumo]      │
+├──────────────────────────────────────────────────────┬──────────────────────┤
+│ 3. COLUMNA PRINCIPAL (68% ancho)                     │ 4. SIDEBAR (32%)     │
+│    ┌──────────────────────────────────────────────┐  │ ┌──────────────────┐ │
+│    │ RASTREADOR ORBITAL (Mapa 2D + Telemetría GPS)│  │ │ ESTADO DE PODER  │ │
+│    │ (Lat, Lon, Altitud, Velocidad, Órbita, Sol)  │  │ │ EPS + BATERÍA    │ │
+│    └──────────────────────────────────────────────┘  │ │ Integrados en un │ │
+│    ┌──────────────────────────────────────────────┐  │ │ solo panel       │ │
+│    │ MONITOREO TÉRMICO Y CÓMPUTO (OBC)            │  │ │ armónico         │ │
+│    │ (CPU, Board, Payload, Memoria + Gráfica)     │  │ └──────────────────┘ │
+│    └──────────────────────────────────────────────┘  │ ┌──────────────────┐ │
+│    ┌──────────────────────────────────────────────┐  │ │ ENLACE RF COMMS  │ │
+│    │ ENERGÍA SOLAR EPS (Gráfica de 3 Ejes X,Y,Z)  │  │ │ RSSI, SNR,       │ │
+│    └──────────────────────────────────────────────┘  │ │ Pérdida + Gráfica│ │
+│                                                      │ └──────────────────┘ │
+└──────────────────────────────────────────────────────┴──────────────────────┘
+
+Estado de las acciones de reordenamiento:
+[X] 1. Mover la barra de controles de simulación (Time Warp, Modos, Pausa, AOS/LOS) arriba,
+       integrada junto a la cinta de métricas rápidas (Mission Control Ribbon).
+[X] 2. Fusionar el panel de Batería dentro del subsistema EPS en una tarjeta unificada
+       (panel--power con batería visual + voltajes solares + corriente).
+[X] 3. Implementar la cuadrícula asimétrica (grid-template-columns: 1fr 340px):
+       - Columna principal: Mapa orbital, OBC térmico, gráfica EPS solar.
+       - Sidebar: Panel de poder unificado (EPS+Batería), panel RF COMMS.
+[X] 4. Ajustar media queries: 1024px (sidebar → grid 2 cols), 640px (1 columna fluida).
+
+--------------------------------------------------------------------------------
+4. LISTA DE TAREAS Y ESTADO DE AVANCE GLOBAL
+--------------------------------------------------------------------------------
+
+[X] FASE 0: ANÁLISIS, DIAGNÓSTICO Y CORRECCIONES DE BASE
+    [X] Revisión completa del código fuente (HTML, CSS, JS, Leaflet, Chart.js).
+    [X] Identificación de problemas de proporciones y duplicación del mapa mundial.
+    [X] Definición de la nueva dirección de arte y sistema de diseño.
+    [X] Detección de necesidades de interactividad para presentación en vivo (aceleración temporal, control de pausa).
+
+[X] FASE 1: SISTEMA DE TEMAS, VARIABLES CSS Y TRANSICIONES (css/style.css)
+    [X] Definir variables CSS para Modo Claro (Beige + Rojo Pastel + Morado).
+    [X] Definir variables CSS para Modo Oscuro (Morado profundo + Rojo Pastel + Amarillo tranquilo).
+    [X] Implementar selector / botón conmutable de tema (Claro / Oscuro) con persistencia en localStorage.
+    [X] Añadir transiciones suaves de cambio de tema (`transition: background 0.35s, color 0.35s, border-color 0.35s`).
+    [X] Ajustar tipografía, bordes redondeados modernos, sombras suaves y micro-interacciones.
+    [X] Eliminar emojis y reemplazar con etiquetas de texto profesionales (panel-icon).
+
+[X] FASE 2: CORRECCIÓN Y REFINAMIENTO DEL MAPA ORBITAL (js/orbit-tracker.js & index.html)
+    [X] Configurar límites estrictos de zoom (minZoom: 2, maxZoom: 8, maxBounds: [[-85, -180], [85, 180]]).
+    [X] Evitar duplicación de continentes (noWrap: true / maxBoundsViscosity: 1.0).
+    [X] Conmutador dinámico de capa de tiles: CartoDB Dark (oscuro) vs. CartoDB Voyager (claro).
+    [X] Adaptar colores de traza orbital, huella de cobertura y marcador de estación terrena según tema.
+    [X] Retorno de estado AOS/LOS desde update() para indicador visual.
+
+[X] FASE 3: REDISEÑO DE ESTRUCTURA Y DISTRIBUCIÓN BASE (index.html & css/style.css)
+    [X] Header unificado con switch de tema y relojes UTC/MET.
+    [X] Quick Stats rediseñados como tarjetas KPI elegantes con iconos de texto.
+    [X] Barra de controles de simulación (Modos, Time Warp 1x-50x, Pausa, AOS/LOS).
+    [X] Eliminación completa de la sección Terminal / Consola AX.25.
+    [X] Textos profesionales sin emojis en toda la interfaz.
+    [X] Aplicar nueva distribución asimétrica Command Center (detallada en Sección 3).
+
+[X] FASE 4: ADAPTACIÓN DINÁMICA DE GRÁFICOS CHART.JS (js/charts.js)
+    [X] Función setTheme() de actualización reactiva de colores sin recarga de página:
+        - Cuadrículas adaptables según tema.
+        - Textos, tooltips y etiquetas con tipografía JetBrains Mono coherente.
+    [X] Colores de datasets diferenciados por tema (Terracota/Morado en claro, Coral/Ámbar/Lavanda en oscuro).
+    [X] Indicador de batería con colores reactivos vía CSS variables.
+
+[X] FASE 5: INTEGRACIÓN CON API SATNOGS NETWORK (js/satnogs-api.js & index.html & app.js)
+    [X] Crear módulo SatNOGSClient: cliente HTTP para la API de SatNOGS Network.
+        - Autenticación por Token (header Authorization).
+        - Endpoint: GET /api/observations/ filtrado por norad_cat_id=52191 (SUCHAI-3).
+        - Fallback con múltiples proxies CORS para compatibilidad de navegador.
+        - Cache en memoria con TTL de 5 minutos.
+        - Auto-refresh periódico cada 5 minutos.
+    [X] Crear módulo SatNOGSRenderer: renderizado de datos en el DOM.
+        - Tarjetas de observaciones con: ID, estación, fecha, duración, elevación, modo TX,
+          frecuencia, frames demodulados, waterfall, observador y ubicación.
+        - Estadísticas resumidas: total, buenas, frames, estaciones, observadores, última obs.
+        - Badge de estado de conexión con la API (idle/loading/ready/error).
+        - Marcadores de estaciones terrenas reales en el mapa Leaflet.
+    [X] Panel HTML en sidebar: "Red SatNOGS — Observaciones Reales".
+        - Grid de 6 estadísticas resumidas.
+        - Botones: "Actualizar datos" (API) y "Datos locales" (data/observations.json).
+        - Lista scrolleable de hasta 10 tarjetas de observaciones reales.
+    [X] Integración en app.js:
+        - Instancia de SatNOGSClient con callbacks de actualización.
+        - Marcadores de estaciones terrenas de la red SatNOGS en el mapa orbital.
+        - Auto-start de la conexión API al cargar la página.
+        - Fallback a datos locales si la API falla (CORS o red).
+    [X] Estilos CSS completos para el panel SatNOGS:
+        - API status badge con colores por estado.
+        - Tarjetas de observación con hover y diseño de 2 columnas.
+        - Responsive para tablet (1024px) y móvil (640px).
+
+[ ] FASE 6: DOCUMENTACIÓN FORMAL Y PREPARACIÓN PARA EXPOSICIÓN (README.md)
+    [ ] Actualizar README.md reflejando los cambios implementados.
+    [ ] Capturas de pantalla de ambos modos (claro y oscuro).
+    [ ] Diagrama de bloques de la arquitectura actualizada.
+
+[ ] FASE 7: REVISIÓN FINAL, PRUEBAS Y PULIDO
+    [ ] Validar responsividad en pantallas pequeñas (laptops/móviles), medianas y monitores HD.
+    [ ] Comprobar funcionamiento en vivo de simulación continua (manejo de memoria en buffers de telemetría).
+    [ ] Pruebas finales de switches de tema, time-warp y controles de simulación.
+
+--------------------------------------------------------------------------------
+Registro de Sesiones:
+- Sesión 1 (31-Ago-2026): Diagnóstico del proyecto, definición de paleta y creación de hoja de ruta.
+- Sesión 2 (31-Ago-2026): Incorporación de Time Warp, transiciones, tiles dinámicos y documentación.
+- Sesión 3 (31-Ago-2026): Implementación de Fases 1-4 (Temas, sin emojis, sin terminal, time-warp, AOS/LOS).
+- Sesión 4 (31-Ago-2026): Diseño y documentación de la nueva arquitectura asimétrica Command Center (68%/32%).
+- Sesión 5 (31-Ago-2026): Integración completa con API SatNOGS Network (Fase 5). Módulo satnogs-api.js,
+  panel de observaciones reales, estaciones terrenas en mapa, auto-refresh, y fallback local.
+================================================================================
+

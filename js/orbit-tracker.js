@@ -1,15 +1,38 @@
 /**
  * SUCHAI 4 — Orbital Tracker
- * Interactive 2D map showing satellite ground track, footprint,
- * and ground station using Leaflet.js.
+ * Rastreador orbital 2D interactivo con Leaflet.js.
+ * Soporta cambio dinámico de tema (claro/oscuro) con tiles y colores adaptativos.
  */
 (function(window) {
   'use strict';
+
+  /** Paletas de colores por tema */
+  var THEME_COLORS = {
+    light: {
+      satellite: '#E26D5C',
+      footprint: '#E26D5C',
+      track: '#E26D5C',
+      gsMarker: '#63519F',
+      gsRange: '#63519F',
+      connection: '#4A9F73',
+      tiles: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png?key=cb1_2n73_1_de7c12ea6ff2bb23be8eb35e'
+    },
+    dark: {
+      satellite: '#F07C6F',
+      footprint: '#F07C6F',
+      track: '#F07C6F',
+      gsMarker: '#E5C07B',
+      gsRange: '#E5C07B',
+      connection: '#5BD48F',
+      tiles: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?key=cb1_2n73_1_de7c12ea6ff2bb23be8eb35e'
+    }
+  };
 
   class OrbitTracker {
     constructor(mapContainerId) {
       this.mapContainerId = mapContainerId;
       this.map = null;
+      this.tileLayer = null;
       this.satMarker = null;
       this.footprint = null;
       this.groundStation = null;
@@ -17,13 +40,14 @@
       this.groundTrack = null;
       this.connectionLine = null;
       this.trackUpdateCounter = 0;
+      this.currentTheme = 'light';
 
-      // Santiago, Chile ground station coordinates
+      // Estación terrena Santiago, Chile
       this.gsLat = -33.45;
       this.gsLon = -70.67;
     }
 
-    /** Initialize map after DOM is ready */
+    /** Inicializar mapa después de que el DOM esté listo */
     init() {
       var container = document.getElementById(this.mapContainerId);
       if (!container) {
@@ -36,7 +60,7 @@
         return;
       }
 
-      // Inject satellite pulse animation CSS
+      // Inyectar CSS de animación del pulso del satélite
       if (!document.getElementById('sat-pulse-style')) {
         var style = document.createElement('style');
         style.id = 'sat-pulse-style';
@@ -48,88 +72,165 @@
         document.head.appendChild(style);
       }
 
-      // Create map
+      var colors = THEME_COLORS[this.currentTheme];
+
+      // Crear mapa con límites estrictos
       this.map = L.map(this.mapContainerId, {
         center: [0, 0],
         zoom: 2,
-        maxBounds: [[-90, -180], [90, 180]],
+        minZoom: 2,
+        maxZoom: 8,
+        maxBounds: [[-85, -180], [85, 180]],
         maxBoundsViscosity: 1.0,
-        worldCopyJump: true,
         zoomAnimation: false
       });
 
-      // Dark map tiles
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?key=cb1_2c4h_1_99ce1ce766e0e07dc470ffaf', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+      // Capa de tiles
+      this.tileLayer = L.tileLayer(colors.tiles, {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
         subdomains: 'abcd',
-        maxZoom: 18
+        maxZoom: 18,
+        noWrap: true
       }).addTo(this.map);
 
-      // ── Satellite marker ──
-      var satIcon = L.divIcon({
-        className: '',
-        html: '<div style="width:14px;height:14px;background:#06b6d4;border-radius:50%;' +
-              'box-shadow:0 0 12px #06b6d4,0 0 24px rgba(6,182,212,0.4);' +
-              'animation:sat-pulse 2s ease-in-out infinite;"></div>',
-        iconSize: [14, 14],
-        iconAnchor: [7, 7]
-      });
+      // Marcador del satélite
+      this.satMarker = L.marker([0, 0], {
+        icon: this._createSatIcon(colors.satellite)
+      }).addTo(this.map);
+      this.satMarker.bindTooltip('SUCHAI 4', { permanent: false, direction: 'top', offset: [0, -10] });
 
-      this.satMarker = L.marker([0, 0], { icon: satIcon }).addTo(this.map);
-      this.satMarker.bindTooltip('🛰️ SUCHAI 4', { permanent: false, direction: 'top', offset: [0, -10] });
-
-      // ── Satellite footprint ──
+      // Huella de cobertura del satélite (~2500 km)
       this.footprint = L.circle([0, 0], {
-        radius: 2500000, // ~2500 km ground coverage at 500km altitude
-        color: '#06b6d4',
-        fillColor: '#06b6d4',
+        radius: 2500000,
+        color: colors.footprint,
+        fillColor: colors.footprint,
         fillOpacity: 0.06,
         opacity: 0.25,
         weight: 1
       }).addTo(this.map);
 
-      // ── Ground station marker (Santiago) ──
-      var gsIcon = L.divIcon({
-        className: '',
-        html: '<div style="width:10px;height:10px;background:#f59e0b;border-radius:50%;' +
-              'box-shadow:0 0 8px #f59e0b;"></div>',
-        iconSize: [10, 10],
-        iconAnchor: [5, 5]
-      });
+      // Marcador de estación terrena (Santiago)
+      this.groundStation = L.marker([this.gsLat, this.gsLon], {
+        icon: this._createGSIcon(colors.gsMarker)
+      }).addTo(this.map);
+      this.groundStation.bindTooltip('Estación Terrena — Santiago', { permanent: false, direction: 'top' });
 
-      this.groundStation = L.marker([this.gsLat, this.gsLon], { icon: gsIcon }).addTo(this.map);
-      this.groundStation.bindTooltip('📡 Estación Terrena — Santiago', { permanent: false, direction: 'top' });
-
-      // ── Ground station reception range ──
+      // Rango de recepción de la estación terrena
       this.gsRange = L.circle([this.gsLat, this.gsLon], {
         radius: 2000000,
-        color: '#f59e0b',
-        fillColor: '#f59e0b',
+        color: colors.gsRange,
+        fillColor: colors.gsRange,
         fillOpacity: 0.04,
         opacity: 0.2,
         weight: 1
       }).addTo(this.map);
 
-      // ── Ground track polyline ──
+      // Traza orbital (ground track)
       this.groundTrack = L.polyline([], {
-        color: '#06b6d4',
+        color: colors.track,
         opacity: 0.35,
         weight: 2,
         dashArray: '5 10'
       }).addTo(this.map);
 
-      // ── Connection line (sat ↔ ground station when in range) ──
+      // Línea de conexión (satélite ↔ estación terrena)
       this.connectionLine = L.polyline([], {
-        color: '#22c55e',
+        color: colors.connection,
         weight: 1.5,
         dashArray: '8 4',
         opacity: 0.6
       }).addTo(this.map);
     }
 
-    /** Update map from telemetry data */
+    /** Crear icono del satélite */
+    _createSatIcon(color) {
+      return L.divIcon({
+        className: '',
+        html: '<div style="width:14px;height:14px;background:' + color + ';border-radius:50%;' +
+              'box-shadow:0 0 12px ' + color + ',0 0 24px ' + color + '40;' +
+              'animation:sat-pulse 2s ease-in-out infinite;"></div>',
+        iconSize: [14, 14],
+        iconAnchor: [7, 7]
+      });
+    }
+
+    /** Crear icono de la estación terrena */
+    _createGSIcon(color) {
+      return L.divIcon({
+        className: '',
+        html: '<div style="width:10px;height:10px;background:' + color + ';border-radius:50%;' +
+              'box-shadow:0 0 8px ' + color + ';"></div>',
+        iconSize: [10, 10],
+        iconAnchor: [5, 5]
+      });
+    }
+
+    /**
+     * Cambiar tema del mapa dinámicamente.
+     * @param {string} theme - 'light' o 'dark'
+     */
+    setTheme(theme) {
+      if (!this.map) return;
+      if (theme !== 'light' && theme !== 'dark') return;
+
+      this.currentTheme = theme;
+      var colors = THEME_COLORS[theme];
+
+      // Reemplazar capa de tiles
+      if (this.tileLayer) {
+        this.map.removeLayer(this.tileLayer);
+      }
+      this.tileLayer = L.tileLayer(colors.tiles, {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
+        subdomains: 'abcd',
+        maxZoom: 18,
+        noWrap: true
+      }).addTo(this.map);
+
+      // Actualizar marcador del satélite
+      if (this.satMarker) {
+        this.satMarker.setIcon(this._createSatIcon(colors.satellite));
+      }
+
+      // Actualizar huella de cobertura
+      if (this.footprint) {
+        this.footprint.setStyle({
+          color: colors.footprint,
+          fillColor: colors.footprint
+        });
+      }
+
+      // Actualizar marcador de estación terrena
+      if (this.groundStation) {
+        this.groundStation.setIcon(this._createGSIcon(colors.gsMarker));
+      }
+
+      // Actualizar rango de recepción
+      if (this.gsRange) {
+        this.gsRange.setStyle({
+          color: colors.gsRange,
+          fillColor: colors.gsRange
+        });
+      }
+
+      // Actualizar traza orbital
+      if (this.groundTrack) {
+        this.groundTrack.setStyle({ color: colors.track });
+      }
+
+      // Actualizar línea de conexión
+      if (this.connectionLine) {
+        this.connectionLine.setStyle({ color: colors.connection });
+      }
+    }
+
+    /**
+     * Actualizar mapa con datos de telemetría.
+     * @param {Object} data - Datos de telemetría
+     * @returns {{ inRange: boolean, distance: number } | null} Estado AOS/LOS
+     */
     update(data) {
-      if (!this.map || !data || !data.orbit) return;
+      if (!this.map || !data || !data.orbit) return null;
 
       var lat = data.orbit.latitude;
       var lon = data.orbit.longitude;
@@ -139,25 +240,28 @@
       var inEclipse = data.orbit.inEclipse || false;
       var period = data.orbit.period || 5700;
 
-      // Move satellite marker and footprint
+      // Mover marcador del satélite y huella
       this.satMarker.setLatLng([lat, lon]);
       this.footprint.setLatLng([lat, lon]);
 
-      // Update ground track every 5 ticks for performance
+      // Actualizar traza orbital cada 5 ticks (rendimiento)
       this.trackUpdateCounter++;
       if (this.trackUpdateCounter % 5 === 0) {
         this._updateGroundTrack(lat, lon, period);
       }
 
-      // Connection line: draw when satellite is in range of Santiago
-      var dist = this.map.distance([lat, lon], [this.gsLat, this.gsLon]);
-      if (dist < 2500000) {
+      // Línea de conexión: dibujar cuando el satélite está en rango de Santiago
+      var distMeters = this.map.distance([lat, lon], [this.gsLat, this.gsLon]);
+      var distKm = distMeters / 1000;
+      var inRange = distKm < 2500;
+
+      if (inRange) {
         this.connectionLine.setLatLngs([[lat, lon], [this.gsLat, this.gsLon]]);
       } else {
         this.connectionLine.setLatLngs([]);
       }
 
-      // ── Update orbit info DOM ──
+      // Actualizar información orbital en el DOM
       this._setText('lat-value',
         Math.abs(lat).toFixed(4) + '° ' + (lat >= 0 ? 'N' : 'S'));
       this._setText('lon-value',
@@ -165,13 +269,18 @@
       this._setText('alt-value', alt.toFixed(1) + ' km');
       this._setText('vel-value', vel.toFixed(2) + ' km/s');
       this._setText('orbit-number', 'Órbita #' + orbitNum);
-      this._setText('eclipse-status', inEclipse ? 'EN SOMBRA 🌑' : 'EN SOL ☀️');
+      this._setText('eclipse-status', inEclipse ? 'EN SOMBRA' : 'EN SOL');
+
+      // Retornar estado AOS/LOS
+      return {
+        inRange: inRange,
+        distance: distKm
+      };
     }
 
-    /** Calculate and draw sinusoidal ground track */
+    /** Calcular y dibujar traza orbital sinusoidal */
     _updateGroundTrack(currentLat, currentLon, period) {
-      var points = [];
-      var segments = []; // Handle anti-meridian crossings
+      var segments = [];
       var currentSegment = [];
       var prevLon = null;
 
@@ -179,18 +288,18 @@
         var frac = i / 200;
         var angle = 2 * Math.PI * frac;
 
-        // Latitude from orbital inclination
+        // Latitud desde la inclinación orbital
         var pLat = 82.5 * Math.sin(angle);
 
-        // Longitude progression with Earth rotation correction
+        // Progresión de longitud con corrección de rotación terrestre
         var earthRotCorrection = (frac * 360 * period / 86400);
         var lonOffset = (frac * 360) - earthRotCorrection;
         var pLon = currentLon + lonOffset;
 
-        // Normalize to -180..180
+        // Normalizar a -180..180
         pLon = ((pLon % 360) + 540) % 360 - 180;
 
-        // Detect anti-meridian crossing → start new segment
+        // Detectar cruce del antimeridiano → nuevo segmento
         if (prevLon !== null && Math.abs(pLon - prevLon) > 180) {
           if (currentSegment.length > 1) {
             segments.push(currentSegment);
@@ -206,17 +315,17 @@
         segments.push(currentSegment);
       }
 
-      // Use multi-polyline to handle wrapping
+      // Usar multi-polilínea para manejar el wrapping
       this.groundTrack.setLatLngs(segments);
     }
 
-    /** Helper: set element text by ID */
+    /** Helper: establecer texto de elemento por ID */
     _setText(id, text) {
       var el = document.getElementById(id);
       if (el) el.textContent = text;
     }
 
-    /** Cleanup */
+    /** Limpieza */
     destroy() {
       if (this.map) {
         this.map.remove();
